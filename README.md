@@ -6,7 +6,9 @@ Previous foundation models for retinal images were pre-trained with limited dise
 
 
 # Create and Activate Conda Environment
-conda create -n retizero python=3.8 -y \\
+conda create -n retizero python=3.8 -y
+
 conda activate retizero
+
 # Install Dependencies
 pip install -r requirements.txt
