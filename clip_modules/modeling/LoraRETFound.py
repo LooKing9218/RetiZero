@@ -8,7 +8,7 @@ class Identity(nn.Module):
     """Identity layer to replace last fully connected layer"""
     def forward(self, x):
         return x
-def vit_large_patch16(pretrained=True):
+def RETFound(pretrained=True):
     model = VisionTransformer(
         patch_size=16, embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6))
@@ -30,12 +30,9 @@ def vit_large_patch16(pretrained=True):
 
         # load pre-trained model
         msg = model.load_state_dict(checkpoint_model, strict=False)
-        print("msg.missing_keys === {}".format(msg.missing_keys))
-
 
     # manually initialize fc layer
     trunc_normal_(model.head.weight, std=2e-5)
-    # print("Model = %s" % str(model))
     model.head = Identity()
     return model
 
@@ -43,7 +40,7 @@ def vit_large_patch16(pretrained=True):
 from clip_modules.modeling.LORA.lora_image_encoder import LoRA_ViT
 def lora(pretrained=True,R=8):
     print("================ LORA R================{}".format(R))
-    ViT= vit_large_patch16(pretrained=pretrained)
+    ViT= RETFound(pretrained=pretrained)
     model = LoRA_ViT(ViT, r=R)
     return model
 
