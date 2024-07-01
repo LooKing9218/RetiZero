@@ -1,5 +1,5 @@
 """
-Main FLAIR modeling function.
+Main RetiZero modeling function.
 """
 import torch
 import torchvision
