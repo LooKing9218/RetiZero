@@ -22,7 +22,7 @@ class CLIPRModel(torch.nn.Module):
     def __init__(self, vision_type='resnet_v1', bert_type='emilyalsentzer/Bio_ClinicalBERT', vision_pretrained=True,
                  proj_dim=512, proj_bias=False, logit_scale_init_value=0.07, from_checkpoint=True, weights_path=None,
                  out_path=None, image_size=512, caption="A fundus photograph of [CLS]", projection=True,
-                 norm_features=True,R=16):
+                 norm_features=True,R=8):
         super().__init__()
 
         # Set attributes
