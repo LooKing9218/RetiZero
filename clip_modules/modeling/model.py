@@ -240,12 +240,6 @@ class CLIPRModel(torch.nn.Module):
             # transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
-            # CopyDict(),
-            # LoadImage(),
-            # ImageScaling(),
-            # ProduceDescription(caption=caption),
-            # AugmentDescription(augment=augment_description),
-            # SelectRelevantKeys()
         ])
 
         img = transforms_proce(image)
@@ -277,13 +271,18 @@ class VisionModel(torch.nn.Module):
         self.proj_dim = proj_dim
 
         # Assert vision encoders
+        # Assert vision encoders
         if vision_type not in ['lora', 'RETFound']:
-            print("Vision model should be one of resnet/efficientnet... using resnet.")
+            print("Vision model should be one of 'lora', 'RETFound'.")
 
         if vision_type == "lora":
             from clip_modules.modeling.LoraRETFound import lora
-            self.model = lora(pretrained=True,R=R)
+            self.model = lora(pretrained=pretrained,R=R)
             self.vision_dim = 1024
+        elif vision_type == "RETFound":
+            from clip_modules.modeling.LoraRETFound import RETFound
+            self.model = RETFound(pretrained=pretrained)
+
 
 
 
