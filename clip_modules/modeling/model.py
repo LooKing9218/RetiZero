@@ -279,35 +279,6 @@ class CLIPRModel(torch.nn.Module):
 
         return input_ids, attention_mask
 
-    # def compute_text_embeddings(self, categories, domain_knowledge=False):
-    #     # Obtain text embeddings per class
-    #     text_embeds_dict = {}
-    #     for iKey in range(len(categories)):
-    #
-    #         # Replace text prompt with expert knowledge descriptions
-    #         if domain_knowledge and categories[iKey] in list(definitions.keys()):
-    #             descriptions = definitions[categories[iKey]]
-    #             if categories[iKey] not in descriptions:
-    #                 descriptions.append(categories[iKey])
-    #         else:
-    #             descriptions = [categories[iKey]]
-    #
-    #         # Forwards prompts trough text encoder
-    #         with torch.no_grad():
-    #             print(descriptions)
-    #             descriptions = [self.caption.replace("[CLS]", iDescription) for iDescription in descriptions]
-    #             text_token = self.text_model.tokenizer(descriptions, truncation=True, padding=True, return_tensors='pt')
-    #             input_ids = text_token["input_ids"].to(device).to(torch.long)
-    #             attention_mask = text_token["attention_mask"].to(device).to(torch.long)
-    #
-    #             text_embeds = self.text_model(input_ids, attention_mask)
-    #
-    #         text_embeds_dict[categories[iKey]] = text_embeds.mean(0).unsqueeze(0)
-    #
-    #     text_embeds_dict = text_embeds_dict
-    #     text_embeds = torch.concat(list(text_embeds_dict.values()))
-    #
-    #     return text_embeds_dict, text_embeds
 
 
 class VisionModel(torch.nn.Module):
@@ -345,10 +316,7 @@ class VisionModel(torch.nn.Module):
             from clip_modules.modeling.LoraRETFound import lora
             self.model = lora(pretrained=True,R=R)
             self.vision_dim = 1024
-        # elif vision_type == "vit_large_patch32_224":
-        #     from clip_modules.modeling.ViTPretrained import Lora_ViT_ImageNet
-        #     self.model = Lora_ViT_ImageNet(pretrained=True)
-        #     self.vision_dim = 1024
+
 
 
 
