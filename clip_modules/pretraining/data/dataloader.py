@@ -1,16 +1,13 @@
 """
-Dataset and Dataloader preparation for vision-language pre-training
+Dataset and Dataloader preparation for vision-language pre-training, Fine-tuning
 """
-
+import torch
 import pandas as pd
 import os
-
 from torchvision.transforms import Compose
 from torch.utils.data import DataLoader
 import torch.utils.data as data
-
 import torchvision.transforms as transforms
-
 from PIL import Image
 Image.MAX_IMAGE_PIXELS = 1000000000
 
@@ -94,3 +91,44 @@ def get_loader(dataframes_path, data_root_path,  batch_size=8, num_workers=0):
     datalaoders = {"train": train_loader}
 
     return datalaoders
+
+class DatasetFinetuing(torch.utils.data.Dataset):
+    def __init__(self, csv_file, data_path, IsTrain):
+        import torchvision.transforms as transforms
+        from torchvision.transforms import Compose
+        if IsTrain:
+            self.transform = Compose([
+                transforms.Resize((224, 224)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            ])
+        else:
+            self.transform = Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            ])
+
+        self.df = pd.read_csv(csv_file)
+        self.data_path = data_path
+
+        self.filenames, self.labels = self.df['Image'], self.df['Label']
+        super().__init__()
+
+    def get_imgs(self, img_path, transform=None):
+        img = Image.open(str(img_path)).convert('RGB')
+        img = transform(img)
+
+        return img
+
+    def __getitem__(self, index):
+        key = self.filenames[index]
+        image_path = os.path.join(self.data_path,key)
+
+        imgs = self.get_imgs(image_path, self.transform)
+        labels = self.labels[index]
+        return imgs, labels
+
+    def __len__(self):
+        return len(self.filenames)
