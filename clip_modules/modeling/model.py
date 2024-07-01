@@ -68,8 +68,6 @@ class CLIPRModel(torch.nn.Module):
         return (caption_loss + image_loss) / 2.0
 
     def ce_loss(self, pred_logit, ref):
-        # print("pred_logit.shape ===== {}".format(pred_logit.shape))
-        # print("ref.shape ===== {}".format(ref.shape))
         ce_loss = torch.nn.functional.cross_entropy(pred_logit, ref)
         return ce_loss
 
