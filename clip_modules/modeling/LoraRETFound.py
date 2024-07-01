@@ -46,7 +46,7 @@ def lora(pretrained=True,R=8):
 
 
 if __name__ == "__main__":
-    net = vit_large_patch16(pretrained=False)
+    net = RETFound(pretrained=False)
     images = torch.rand(2, 3, 224, 224)
     output = net(images)
     print(output.shape)
