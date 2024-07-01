@@ -113,9 +113,9 @@ def save_checkpoint_epoch(state,pred_Auc,pred_ACC,mean_AUC_test, mean_ACC_test,
 
 
 def setup_seed(seed=1234):
-    torch.manual_seed(seed)  # 为CPU设置种子用于生成随机数，以使得结果是确定的
-    torch.cuda.manual_seed(seed)  # 为当前GPU设置随机种子
-    torch.cuda.manual_seed_all(seed)  # torch.cuda.manual_seed_all()为多个GPU设置种子
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
     random.seed(seed)
     ia.seed(seed)
