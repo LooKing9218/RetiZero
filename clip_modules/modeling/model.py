@@ -1,13 +1,10 @@
 """
 Main FLAIR modeling function.
 """
-
 import torch
 import torchvision
 import numpy as np
 import os
-
-
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 from pathlib import Path
@@ -237,7 +234,6 @@ class CLIPRModel(torch.nn.Module):
         from torchvision.transforms import Compose
         transforms_proce = Compose([
             transforms.Resize((224, 224)),
-            # transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
         ])
