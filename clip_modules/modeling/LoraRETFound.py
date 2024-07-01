@@ -32,7 +32,6 @@ def vit_large_patch16(pretrained=True):
         msg = model.load_state_dict(checkpoint_model, strict=False)
         print("msg.missing_keys === {}".format(msg.missing_keys))
 
-        # assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
         assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
 
     # manually initialize fc layer
