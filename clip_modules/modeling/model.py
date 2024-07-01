@@ -146,14 +146,12 @@ class CLIPRModel(torch.nn.Module):
             # Retrieve documents
             images = batch["image"].to(device).to(torch.float32)
             # Create text tokens
-            # print("list(batch[report][0] ======== {}".format(list(batch["report"][0])))
             text_tokens = self.text_model.tokenize(batch["report"])
             input_ids = text_tokens["input_ids"].to(device).to(torch.long)
             attention_mask = text_tokens["attention_mask"].to(device).to(torch.long)
 
             # Create similarity matrix with soft labels as ground truth
             batch_size = images.shape[0]
-            # print("batch_size ===== {}".format(batch_size))
             target = torch.LongTensor(range(batch_size)).to(device)#.to(torch.float32)
             # Forward
             with autocast():
@@ -164,16 +162,12 @@ class CLIPRModel(torch.nn.Module):
 
                 # Forward vision and text encoder
                 img_embeds = self.vision_model(images)
-                # print("img_embeds.shape ===== {}".format(img_embeds.shape))
                 text_embeds = self.text_model(input_ids, attention_mask)
-                # print("text_embeds.shape ===== {}".format(text_embeds.shape))
 
                 # Compute similarity matrix and logits
                 logits_per_image = self.compute_logits(img_embeds, text_embeds)
-                # print("logits_per_image.shape ===== {}".format(logits_per_image.shape))
                 logits_per_text = logits_per_image.t()
                 logits_per_text_T = logits_per_text.T
-                # print("logits_per_text.shape ===== {}".format(logits_per_text.shape))
 
                 evidences_text = [F.softplus(logits_per_text)]
                 evidences_text_T = [F.softplus(logits_per_text_T)]
@@ -255,12 +249,9 @@ class CLIPRModel(torch.nn.Module):
         ])
 
         img = transforms_proce(image)
-        # print("img.shape ===== {}".format(img.shape))
 
         # Set format and device
-        # image = image.to(torch.float32).to(device)
         img = torch.unsqueeze(img,dim=0).to(device)
-        # print("img.shape ===== {}".format(img.shape))
 
         return img
 
@@ -286,31 +277,10 @@ class VisionModel(torch.nn.Module):
         self.proj_dim = proj_dim
 
         # Assert vision encoders
-        if vision_type not in ['resnet_v1', 'resnet_v2', 'efficientnet', 'lora', 'vit_large_patch32_224']:
+        if vision_type not in ['lora', 'RETFound']:
             print("Vision model should be one of resnet/efficientnet... using resnet.")
-            vision_type = "resnet_v1"
 
-        # Set vision encoder architecture and pretrained weights
-        if vision_type == "resnet_v1" or vision_type == "resnet_v2":
-            # Set pretrained weights from Imagenet and get model
-            if vision_type == "resnet_v1":
-                weights = 'IMAGENET1K_V1' if pretrained else None
-            elif vision_type == "resnet_v2":
-                weights = 'IMAGENET1K_V2' if pretrained else None
-
-            else:
-                weights = 'IMAGENET1K_V1' if pretrained else None
-            print("Pretrained weights: " + str(weights))
-            self.model = torchvision.models.resnet50(weights=weights)
-            # Set number of extracted features
-            self.vision_dim = 2048
-            # Replace classifier by Identity layer
-            self.model.fc = torch.nn.Identity()
-        elif vision_type == "efficientnet":
-            weights = 'IMAGENET1K_V1' if pretrained else None
-            self.model = torchvision.models.efficientnet_b7(weights=weights)
-            self.vision_dim = 2096
-        elif vision_type == "lora":
+        if vision_type == "lora":
             from clip_modules.modeling.LoraRETFound import lora
             self.model = lora(pretrained=True,R=R)
             self.vision_dim = 1024
