@@ -63,6 +63,10 @@ class CLIPRModel(torch.nn.Module):
         caption_loss = self.ce_loss(logits_per_text, target_pseudo)
         image_loss = self.ce_loss(logits_per_text.T, target_pseudo)
         return (caption_loss + image_loss) / 2.0
+    def load_from_pretrained(self, weights_path=None):
+        state_dict = torch.load(weights_path)
+        self.load_state_dict(state_dict, strict=True)
+        print('load model weight from:', weights_path)
 
     def ce_loss(self, pred_logit, ref):
         ce_loss = torch.nn.functional.cross_entropy(pred_logit, ref)
@@ -267,7 +271,6 @@ class VisionModel(torch.nn.Module):
         self.proj_dim = proj_dim
 
         # Assert vision encoders
-        # Assert vision encoders
         if vision_type not in ['lora', 'RETFound']:
             print("Vision model should be one of 'lora', 'RETFound'.")
 
@@ -357,3 +360,22 @@ class ProjectionLayer(torch.nn.Module):
                 x = x / x.norm(dim=-1, keepdim=True)
 
         return x
+
+
+class Model_Finetuing(torch.nn.Module):
+    def __init__(self,model_name,class_num,weight_path,IsFinetuning,R):
+        super().__init__()
+
+        RetiZeroModel_trained = CLIPRModel(vision_type=model_name, from_checkpoint=True,
+                           weights_path=weight_path, R=R)
+        self.img_encoder = RetiZeroModel_trained.vision_model.model
+        if IsFinetuning:
+            for para in self.img_encoder.parameters():
+                para.requires_grad = False
+        feature_dim = 1024
+        self.classifier = torch.nn.Linear(feature_dim, class_num, bias=True)
+
+    def forward(self,x):
+        x_features = self.img_encoder(x)
+        out = self.classifier(x_features)
+        return out
