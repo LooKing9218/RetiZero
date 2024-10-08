@@ -15,3 +15,7 @@ conda activate retizero
 
 # Install Dependencies
 pip install -r requirements.txt
+
+# Please download the pre-trained weights for RetiZero through the following link:
+
+https://drive.google.com/file/d/14bMmnefO73_NL1Xc4x0A5qFNbuI7GqKM/view?usp=sharing
