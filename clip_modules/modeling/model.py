@@ -63,6 +63,12 @@ class CLIPRModel(torch.nn.Module):
         caption_loss = self.ce_loss(logits_per_text, target_pseudo)
         image_loss = self.ce_loss(logits_per_text.T, target_pseudo)
         return (caption_loss + image_loss) / 2.0
+
+    def load_from_pretrained(self, weights_path=None):
+        state_dict = torch.load(weights_path)
+        self.load_state_dict(state_dict, strict=True)
+        print('load model weight from:', weights_path)
+        
     def load_from_pretrained(self, weights_path=None):
         state_dict = torch.load(weights_path)
         self.load_state_dict(state_dict, strict=True)
