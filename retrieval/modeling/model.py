@@ -1,16 +1,14 @@
-"""
-Main RetiZero modeling function.
-"""
 import torch
-import torchvision
-import numpy as np
 import os
+
+from .dictionary import definitions
+from . import constants
+from .misc import wget_gdrive_secure
+
 from torch.cuda.amp import autocast
 from tqdm import tqdm
 from pathlib import Path
 from transformers import AutoModel, AutoTokenizer, logging
-from torch.nn import functional as F
-
 logging.set_verbosity_error()
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -37,6 +35,8 @@ class CLIPRModel(torch.nn.Module):
         self.out_path = out_path
         self.image_size = image_size
         self.caption = caption
+        # Use of projection head and feature normalization on visione encoder
+        # (only relevant during transferability stage)
         self.projection = projection
         self.norm_features = norm_features
 
@@ -53,51 +53,23 @@ class CLIPRModel(torch.nn.Module):
         # Load pretrained weights
         if from_checkpoint:
             self.load_from_pretrained(self.weights_path)
-
+        #
         # Set model to device
         self.to(device)
+
+    def load_from_pretrained(self, weights_path=None):
+        state_dict = torch.load(weights_path)
+        self.load_state_dict(state_dict, strict=True)
+        print('load model weight from:', weights_path)
 
     def softce_clip_loss(self, logits_per_text, target_pseudo):
         caption_loss = self.ce_loss(logits_per_text, target_pseudo)
         image_loss = self.ce_loss(logits_per_text.T, target_pseudo)
         return (caption_loss + image_loss) / 2.0
 
-    def load_from_pretrained(self, weights_path=None):
-        state_dict = torch.load(weights_path)
-        self.load_state_dict(state_dict, strict=True)
-        print('load model weight from:', weights_path)
-        
-    def load_from_pretrained(self, weights_path=None):
-        state_dict = torch.load(weights_path)
-        self.load_state_dict(state_dict, strict=True)
-        print('load model weight from:', weights_path)
-
     def ce_loss(self, pred_logit, ref):
         ce_loss = torch.nn.functional.cross_entropy(pred_logit, ref)
         return ce_loss
-
-
-    # loss function
-    def KL(self,alpha, c):
-        beta = torch.ones((1, c)).cuda()
-        S_alpha = torch.sum(alpha, dim=1, keepdim=True)
-        S_beta = torch.sum(beta, dim=1, keepdim=True)
-        lnB = torch.lgamma(S_alpha) - torch.sum(torch.lgamma(alpha), dim=1, keepdim=True)
-        lnB_uni = torch.sum(torch.lgamma(beta), dim=1, keepdim=True) - torch.lgamma(S_beta)
-        dg0 = torch.digamma(S_alpha)
-        dg1 = torch.digamma(alpha)
-        kl = torch.sum((alpha - beta) * (dg1 - dg0), dim=1, keepdim=True) + lnB + lnB_uni
-        return kl
-
-    def un_ce_loss(self, p, alpha, c, global_step, annealing_step=15):
-        S = torch.sum(alpha, dim=1, keepdim=True)
-        E = alpha - 1
-        label = F.one_hot(p, num_classes=c)
-        A = torch.sum(label * (torch.digamma(S) - torch.digamma(alpha)), dim=1, keepdim=True)
-        annealing_coef = min(1, global_step / annealing_step)
-        alp = E * (1 - label) + 1
-        B = annealing_coef * self.KL(alp, c)
-        return (A + B)
 
     def compute_logits(self, img_emb, text_emb):
         self.logit_scale.data = torch.clamp(self.logit_scale.data, 0, 4.6052)
@@ -113,7 +85,7 @@ class CLIPRModel(torch.nn.Module):
 
         # Set scheduler
         if scheduler:
-            from clip_modules.pretraining.utils import get_scheduler_per_iteration
+            from retrieval.pretraining.utils import get_scheduler_per_iteration
             scheduler = get_scheduler_per_iteration(optimizer, lr, warmup_epoch, len(datalaoders["train"]))
         else:
             scheduler = None
@@ -121,6 +93,7 @@ class CLIPRModel(torch.nn.Module):
         # Training along epochs
         epoch = 1
         while epoch <= epochs:
+
             # Train epoch
             loss_epoch = self.train_epoch(datalaoders["train"], optimizer, scheduler, transforms, epoch)
 
@@ -133,6 +106,7 @@ class CLIPRModel(torch.nn.Module):
                     if not os.path.isdir(self.out_path):
                         os.makedirs(self.out_path)
                     torch.save(self.state_dict(), self.out_path + self.vision_type + '_epoch' + str(epoch) + '.pth')
+
             # Update epoch
             epoch += 1
 
@@ -151,12 +125,18 @@ class CLIPRModel(torch.nn.Module):
             # Retrieve documents
             images = batch["image"].to(device).to(torch.float32)
             # Create text tokens
+            # print("list(batch[report][0] ======== {}".format(list(batch["report"][0])))
             text_tokens = self.text_model.tokenize(batch["report"])
             input_ids = text_tokens["input_ids"].to(device).to(torch.long)
             attention_mask = text_tokens["attention_mask"].to(device).to(torch.long)
 
             # Create similarity matrix with soft labels as ground truth
+            # coocurrence = np.array(
+            #     [[iDesc == iiDesc for iDesc in batch["sel_category"]] for iiDesc in batch["sel_category"]], np.float32)
+            # target = torch.tensor(coocurrence / coocurrence.sum(-1)).to(device).to(torch.float32)
+            # labels = Variable(torch.LongTensor(range(batch_size))).to(cnn_code.device)
             batch_size = images.shape[0]
+            # print("batch_size ===== {}".format(batch_size))
             target = torch.LongTensor(range(batch_size)).to(device)#.to(torch.float32)
             # Forward
             with autocast():
@@ -167,28 +147,18 @@ class CLIPRModel(torch.nn.Module):
 
                 # Forward vision and text encoder
                 img_embeds = self.vision_model(images)
+                # print("img_embeds.shape ===== {}".format(img_embeds.shape))
                 text_embeds = self.text_model(input_ids, attention_mask)
+                # print("text_embeds.shape ===== {}".format(text_embeds.shape))
 
                 # Compute similarity matrix and logits
                 logits_per_image = self.compute_logits(img_embeds, text_embeds)
+                # print("logits_per_image.shape ===== {}".format(logits_per_image.shape))
                 logits_per_text = logits_per_image.t()
-                logits_per_text_T = logits_per_text.T
-
-                evidences_text = [F.softplus(logits_per_text)]
-                evidences_text_T = [F.softplus(logits_per_text_T)]
-                alpha_text_T = dict()
-                alpha_text = dict()
-                alpha_text[0] = evidences_text[0] + 1
-                alpha_text_T[0] = evidences_text_T[0] + 1
-
-
-                loss_un_text = self.un_ce_loss(target,alpha_text[0],c=batch_size,global_step=epoch,annealing_step=15)
-                loss_un_text = torch.mean(loss_un_text)
-                loss_un_vision = self.un_ce_loss(target,alpha_text_T[0],c=batch_size,global_step=epoch,annealing_step=15)
-                loss_un_vision = torch.mean(loss_un_vision)
+                # print("logits_per_text.shape ===== {}".format(logits_per_text.shape))
 
                 # Compute cross-entropy loss
-                loss = self.softce_clip_loss(logits_per_text, target)+(loss_un_text+loss_un_vision)
+                loss = self.softce_clip_loss(logits_per_text, target)
 
             # Update model with scaler
             scaler.scale(loss).backward()
@@ -242,14 +212,24 @@ class CLIPRModel(torch.nn.Module):
         from torchvision.transforms import Compose
         transforms_proce = Compose([
             transforms.Resize((224, 224)),
+            # transforms.RandomHorizontalFlip(p=0.5),
             transforms.ToTensor(),
             transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))
+            # CopyDict(),
+            # LoadImage(),
+            # ImageScaling(),
+            # ProduceDescription(caption=caption),
+            # AugmentDescription(augment=augment_description),
+            # SelectRelevantKeys()
         ])
 
         img = transforms_proce(image)
+        # print("img.shape ===== {}".format(img.shape))
 
         # Set format and device
+        # image = image.to(torch.float32).to(device)
         img = torch.unsqueeze(img,dim=0).to(device)
+        # print("img.shape ===== {}".format(img.shape))
 
         return img
 
@@ -266,29 +246,46 @@ class CLIPRModel(torch.nn.Module):
 
         return input_ids, attention_mask
 
+    def compute_text_embeddings(self, categories, domain_knowledge=False):
+        # Obtain text embeddings per class
+        text_embeds_dict = {}
+        for iKey in range(len(categories)):
+
+            # Replace text prompt with expert knowledge descriptions
+            if domain_knowledge and categories[iKey] in list(definitions.keys()):
+                descriptions = definitions[categories[iKey]]
+                if categories[iKey] not in descriptions:
+                    descriptions.append(categories[iKey])
+            else:
+                descriptions = [categories[iKey]]
+
+            # Forwards prompts trough text encoder
+            with torch.no_grad():
+                print(descriptions)
+                descriptions = [self.caption.replace("[CLS]", iDescription) for iDescription in descriptions]
+                text_token = self.text_model.tokenizer(descriptions, truncation=True, padding=True, return_tensors='pt')
+                input_ids = text_token["input_ids"].to(device).to(torch.long)
+                attention_mask = text_token["attention_mask"].to(device).to(torch.long)
+
+                text_embeds = self.text_model(input_ids, attention_mask)
+
+            text_embeds_dict[categories[iKey]] = text_embeds.mean(0).unsqueeze(0)
+
+        text_embeds_dict = text_embeds_dict
+        text_embeds = torch.concat(list(text_embeds_dict.values()))
+
+        return text_embeds_dict, text_embeds
 
 
 class VisionModel(torch.nn.Module):
     def __init__(self, vision_type='resnet', pretrained=True, proj_dim=512, proj_bias=False, projection=True,
-                 norm=True,R=16):
+                 norm=True,R=8):
         super().__init__()
         self.proj_dim = proj_dim
 
-        # Assert vision encoders
-        if vision_type not in ['lora', 'RETFound']:
-            print("Vision model should be one of 'lora', 'RETFound'.")
-
-        if vision_type == "lora":
-            from clip_modules.modeling.LoraRETFound import lora
-            self.model = lora(pretrained=pretrained,R=R)
-            self.vision_dim = 1024
-        elif vision_type == "RETFound":
-            from clip_modules.modeling.LoraRETFound import RETFound
-            self.model = RETFound(pretrained=pretrained)
-
-
-
-
+        from retrieval.modeling.LoraRETFound import lora
+        self.model = lora(pretrained=True,R=R)
+        self.vision_dim = 1024
 
         # Set output dimension
         if projection:
@@ -302,10 +299,7 @@ class VisionModel(torch.nn.Module):
                                                       projection=projection, norm=norm)
 
     def forward(self, pixel_values):
-        # Forwards trough vision encoder
         embed = self.model(pixel_values)
-        # Compute projection from vision embedding to multi-modal projection
-        embed = self.projection_head_vision(embed)
         return embed
 
 
@@ -364,22 +358,3 @@ class ProjectionLayer(torch.nn.Module):
                 x = x / x.norm(dim=-1, keepdim=True)
 
         return x
-
-
-class Model_Finetuing(torch.nn.Module):
-    def __init__(self,model_name,class_num,weight_path,IsFinetuning,R):
-        super().__init__()
-
-        RetiZeroModel_trained = CLIPRModel(vision_type=model_name, from_checkpoint=True,
-                           weights_path=weight_path, R=R)
-        self.img_encoder = RetiZeroModel_trained.vision_model.model
-        if IsFinetuning:
-            for para in self.img_encoder.parameters():
-                para.requires_grad = False
-        feature_dim = 1024
-        self.classifier = torch.nn.Linear(feature_dim, class_num, bias=True)
-
-    def forward(self,x):
-        x_features = self.img_encoder(x)
-        out = self.classifier(x_features)
-        return out
