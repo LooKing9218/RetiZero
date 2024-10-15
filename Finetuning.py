@@ -2,10 +2,8 @@ import os
 os.environ["CUDA_VISIBLE_DEVICES"] ="0"
 import argparse
 import torch
-import datetime
 import tqdm
 from sklearn import metrics
-from dateutil import tz
 import torch.nn as nn
 import utils.utils as u
 from clip_modules import CLIPRModel
@@ -126,11 +124,11 @@ def train(train_loader, val_loader, test_loader, model, optimizer, criterion,arg
                 filename=os.path.join(checkpoint_dir,"checkpoint.pth.tar"))
 
 class Model_Finetuing(torch.nn.Module):
-    def __init__(self,model_name,class_num,weight_path,R):
+    def __init__(self,model_name,class_num,weight_path):
         super().__init__()
 
         Model_Pretrained = CLIPRModel(vision_type=model_name, from_checkpoint=True,
-                           weights_path=weight_path, R=R)
+                           weights_path=weight_path, R=8)
         self.img_encoder = Model_Pretrained.vision_model.model
         for para in self.img_encoder.parameters():
             para.requires_grad = False
@@ -150,15 +148,14 @@ class Model_Finetuing(torch.nn.Module):
 
 def main(args):
     # bulid model
-    # weight_path = "./Pretrained/RetiZero.pth"
-    weight_path = "/raid/wangmeng/Project/IdeaTest/LinT/FoundLIP/Code_CLIP/Pretraining/FLAIR_RETFound_Un/ModelSaved_out_Lora_UN_R_8_0117/lora_epoch15.pth"
-    model = Model_Finetuing(model_name="lora",class_num=args.num_classes,weight_path=weight_path,R=8)
+    weight_path = "./Pretrained/RetiZero.pth"
+    model = Model_Finetuing(model_name="lora",class_num=args.num_classes,weight_path=weight_path)
     # get datamodule
-    data_path = "/raid/wangmeng/Project/IdeaTest/LinT/FoundLIP/DTS/Dataset/Dataset_DonwStream"
-    csv_path = "/raid/wangmeng/Project/IdeaTest/LinT/FoundLIP/DTS/Dataset/Dataset_DonwStream/Data_FromShantou/Typical_csv"
-    train_csv = os.path.join(csv_path, "ShantouTypical_train.csv")
-    valid_csv = os.path.join(csv_path, "ShantouTypical_valid.csv")
-    test_csv = os.path.join(csv_path, "ShantouTypical_test.csv")
+    data_path = "./Dataset/Dataset_DonwStream"
+    csv_path = "./CSV_Dir"
+    train_csv = os.path.join(csv_path, "train.csv")
+    valid_csv = os.path.join(csv_path, "valid.csv")
+    test_csv = os.path.join(csv_path, "test.csv")
     train_dataset = CusImageDataset(
         csv_file=train_csv,
         data_path=data_path)
