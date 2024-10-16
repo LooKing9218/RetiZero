@@ -6,14 +6,13 @@ import tqdm
 from sklearn import metrics
 import torch.nn as nn
 import utils.utils as u
-from clip_modules import CLIPRModel
+from iden_modules import CLIPRModel
 from utils.dataset_finetuning import CusImageDataset
 from torch.utils.data import DataLoader
 import glob
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = True
-
 def val(val_dataloader, model, epoch, args, mode):
     print('\n')
     print('====== Start {} ======!'.format(mode))
@@ -151,8 +150,8 @@ def main(args):
     weight_path = "./Pretrained/RetiZero.pth"
     model = Model_Finetuing(model_name="lora",class_num=args.num_classes,weight_path=weight_path)
     # get datamodule
-    data_path = "./Dataset/Dataset_DonwStream"
-    csv_path = "./CSV_Dir"
+    data_path = "Path to the data"
+    csv_path = "Path to the csv file"
     train_csv = os.path.join(csv_path, "train.csv")
     valid_csv = os.path.join(csv_path, "valid.csv")
     test_csv = os.path.join(csv_path, "test.csv")
