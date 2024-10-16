@@ -13,31 +13,6 @@ def vit_large_patch16(pretrained=True):
     model = VisionTransformer(
         patch_size=16, embed_dim=1024, depth=24, num_heads=16, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6))
-
-    if pretrained:
-        # load RETFound weights
-        checkpoint = torch.load(
-            # '/data1/wangmeng/IdeaTest/LFM/C/Gloria_Pretraining_1228_Harvard/Pretrained/RETFound_cfp_weights.pth',
-            '/raid/wangmeng/Project/IdeaTest/LinT/FoundLIP/Code/Gloria/pretrained/RETFound_cfp_weights.pth',
-            # '/data1/wangmeng/IdeaTest/CMR/wangmeng/FoundLIP/Pretrained/RETFound_cfp_weights.pth',
-            map_location='cpu')
-        checkpoint_model = checkpoint['model']
-        state_dict = model.state_dict()
-        for k in ['head.weight', 'head.bias']:
-            if k in checkpoint_model and checkpoint_model[k].shape != state_dict[k].shape:
-                print(f"Removing key {k} from pretrained checkpoint")
-                del checkpoint_model[k]
-
-        # interpolate position embedding
-        interpolate_pos_embed(model, checkpoint_model)
-
-        # load pre-trained model
-        msg = model.load_state_dict(checkpoint_model, strict=False)
-        print("msg.missing_keys === {}".format(msg.missing_keys))
-
-        # assert set(msg.missing_keys) == {'head.weight', 'head.bias', 'fc_norm.weight', 'fc_norm.bias'}
-        assert set(msg.missing_keys) == {'head.weight', 'head.bias'}
-
     # manually initialize fc layer
     trunc_normal_(model.head.weight, std=2e-5)
     # print("Model = %s" % str(model))

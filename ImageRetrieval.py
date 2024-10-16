@@ -10,18 +10,17 @@ import seaborn as sns
 import umap.umap_ as umap
 import torch, hdbscan
 import pandas as pd
+import matplotlib.pyplot as plt
 
 Data_Pkl = "ImageRetrieval"
-data_dir = "./"  # 替换为您的数据集目录
+data_dir = "data_dir"
 # dataset structure
 # data_dir
 # ---class_dir1
 # ---class_dir2
 # ......
 # ---class_dirN
-
-weight_path = "./Pretrained/RetiZero.pth"
-
+weight_path = "Path to /RetiZero.pth"
 def precision_at_k(sm, query, k):
     true_category = DATA.loc[query]["category"]
     recommended = DATA["category"].loc[get_top_k(sm, query, k)]
@@ -56,7 +55,7 @@ def find_similar(sm, query):
 #
 
 
-class Model_Finetuing(torch.nn.Module):
+class FeatureExtractor(torch.nn.Module):
     def __init__(self,model_name,weight_path):
         super().__init__()
 
@@ -98,7 +97,7 @@ for im_id in range(len(dataset)):
 
 
 ALL_IMAGES = pd.DataFrame(ALL_IMAGES)
-ALL_IMAGES.head(10)
+# ALL_IMAGES.head(10)
 
 ALL_IMAGES.to_pickle('all_images_backup.pkl')
 
@@ -106,9 +105,8 @@ ALL_IMAGES.to_pickle('all_images_backup.pkl')
 
 ALL_IMAGES = pd.read_pickle('all_images_backup.pkl')
 
-ALL_IMAGES.head(10)
+# ALL_IMAGES.head(10)
 
-import matplotlib.pyplot as plt
 
 # 按类别分组
 grouped_images = ALL_IMAGES.groupby('category')
@@ -120,7 +118,7 @@ ALL_IMAGES = ALL_IMAGES.groupby(
 ).head(8000).sort_values("category")
 
 
-embeddings_model = Model_Finetuing(model_name="lora", weight_path=weight_path).to("cuda")
+embeddings_model = FeatureExtractor(model_name="lora", weight_path=weight_path).to("cuda")
 
 embeddings_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
 
@@ -132,8 +130,8 @@ last_hidden_shape = None
 attentions_shape = None
 embeddings_shape = None
 
-for start in tqdm.tqdm(range(0, len(ALL_IMAGES), 8)):
-    ims = list(ALL_IMAGES["image"][start:start + 8])
+for start in tqdm.tqdm(range(0, len(ALL_IMAGES), 64)):
+    ims = list(ALL_IMAGES["image"][start:start + 64])
     # print("ims =========== {}".format(ims))
     # Generate the embeddings
     embed_inputs = embeddings_processor(ims, return_tensors="pt").to("cuda")
