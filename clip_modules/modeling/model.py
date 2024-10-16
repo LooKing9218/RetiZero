@@ -278,17 +278,9 @@ class VisionModel(torch.nn.Module):
         if vision_type not in ['lora', 'RETFound']:
             print("Vision model should be one of 'lora', 'RETFound'.")
 
-        if vision_type == "lora":
-            from clip_modules.modeling.LoraRETFound import lora
-            self.model = lora(pretrained=pretrained,R=R)
-            self.vision_dim = 1024
-        elif vision_type == "RETFound":
-            from clip_modules.modeling.LoraRETFound import RETFound
-            self.model = RETFound(pretrained=pretrained)
-
-
-
-
+        from clip_modules.modeling.LoraRETFound import lora
+        self.model = lora(pretrained=pretrained,R=R)
+        self.vision_dim = 1024
 
         # Set output dimension
         if projection:
