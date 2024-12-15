@@ -129,9 +129,6 @@ class Model_Finetuing(torch.nn.Module):
         Model_Pretrained = CLIPRModel(vision_type=model_name, from_checkpoint=True,
                            weights_path=weight_path, R=8)
         self.img_encoder = Model_Pretrained.vision_model.model
-        for para in self.img_encoder.parameters():
-            para.requires_grad = False
-
         if model_name == "lora":
             feature_dim = 1024
         else:
