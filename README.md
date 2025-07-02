@@ -19,3 +19,15 @@ pip install -r requirements.txt
 # Please download the pre-trained weights for RetiZero through the following link:
 
 https://drive.google.com/file/d/14bMmnefO73_NL1Xc4x0A5qFNbuI7GqKM/view?usp=sharing
+
+
+
+# Citation
+@article{wang2025enhancing,
+  title={Enhancing diagnostic accuracy in rare and common fundus diseases with a knowledge-rich vision-language model},
+  author={Wang, Meng and Lin, Tian and Lin, Aidi and Yu, Kai and Peng, Yuanyuan and Wang, Lianyu and Chen, Cheng and Zou, Ke and Liang, Huiyu and Chen, Man and others},
+  journal={Nature Communications},
+  volume={16},
+  pages={5528},
+  year={2025}
+}
